@@ -28,7 +28,6 @@ def fetch_all_spotify_tracks(sp, playlist_id):
                 "spotify_id": t.get("id")
             })
 
-        # Если больше нет страниц — выходим
         if response.get("next") is None:
             break
 
@@ -37,7 +36,6 @@ def fetch_all_spotify_tracks(sp, playlist_id):
     return tracks
 
 def parse_spotify_playlist(sp, url_or_id):
-    # нормализация URL → playlist_id
     if "spotify" in url_or_id:
         playlist_id = url_or_id.rstrip('/').split("/")[-1].split("?")[0]
     else:
@@ -48,7 +46,6 @@ def parse_spotify_playlist(sp, url_or_id):
     title = playlist.get("name")
     owner = playlist.get("owner", {}).get("display_name")
 
-    # ВАЖНО: вот тут получаем *все* треки, а не первые 100
     tracks = fetch_all_spotify_tracks(sp, playlist_id)
 
     return {
