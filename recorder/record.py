@@ -28,8 +28,11 @@ from .config import (
     CACHE_DIR,
     get_track_by_index,
     load_parse_json,
+    SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET,
 )
 from .spotify_controller import get_spotify_user_client, play_track_on_device, get_record_device_id
+from parsers.spotify_parser import get_spotify_client, parse_spotify_playlist
 
 
 def ensure_recordings_dir():
@@ -42,12 +45,22 @@ def safe_filename(track: dict) -> str:
     return f"{artists} - {title}"
 
 
+def safe_folder_name(name: str) -> str:
+    """Безопасное имя папки."""
+    invalid = '<>:"/\\|?*'
+    for c in invalid:
+        name = name.replace(c, "_")
+    return name.strip()[:100] or "playlist"
+
+
 def run_record_track(
     track_index: int = 0,
     parse_path: Path | None = None,
     output_path: Path | None = None,
     manual_play: bool = False,
+    track_dict: dict | None = None,
 ) -> Path | None:
+    """Записать один трек. Либо track_dict, либо (parse_path + track_index)."""
     global _log_file
     RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
     log_path = RECORDINGS_DIR / "record.log"
@@ -68,12 +81,15 @@ def run_record_track(
             print("    wsl python run_record.py ...", flush=True)
             return None
 
-        _log("Загрузка parse.json...")
-        data = load_parse_json(parse_path)
-        track = get_track_by_index(data, track_index)
-        if not track:
-            _log(f"ОШИБКА: трек с индексом {track_index} не найден")
-            return None
+        if track_dict is None:
+            _log("Загрузка parse.json...")
+            data = load_parse_json(parse_path)
+            track = get_track_by_index(data, track_index)
+            if not track:
+                _log(f"ОШИБКА: трек с индексом {track_index} не найден")
+                return None
+        else:
+            track = track_dict
 
         uri = track.get("spotify_uri")
         duration_ms = track.get("duration_ms") or 0
@@ -84,6 +100,8 @@ def run_record_track(
         if output_path is None:
             base_name = safe_filename(track)
             output_path = RECORDINGS_DIR / f"{base_name}.mp3"
+        else:
+            output_path = Path(output_path)
         _log(f"Выходной файл: {output_path}")
 
         pipe_path = PIPE_PATH
@@ -224,3 +242,47 @@ def run_record_track(
             except Exception:
                 pass
             _log_file = None
+
+
+def run_record_playlist(
+    playlist_url: str,
+    output_dir: Path | None = None,
+    manual_play: bool = False,
+    skip_existing: bool = True,
+) -> list[Path]:
+    """
+    Записать все треки плейлиста в папку с именем плейлиста.
+    Возвращает список записанных файлов.
+    """
+    if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+        raise ValueError("SPOTIFY_CLIENT_ID и SPOTIFY_CLIENT_SECRET в .env")
+
+    sp = get_spotify_client(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+    data = parse_spotify_playlist(sp, playlist_url)
+    playlist_title = data.get("title", "playlist")
+    tracks = data.get("tracks", [])
+
+    folder_name = safe_folder_name(playlist_title)
+    if output_dir is None:
+        output_dir = RECORDINGS_DIR / folder_name
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    recorded: list[Path] = []
+    total = len(tracks)
+    for i, track in enumerate(tracks):
+        filename = safe_filename(track) + ".mp3"
+        out_path = output_dir / filename
+        if skip_existing and out_path.exists():
+            print(f"[{i+1}/{total}] Пропуск (уже есть): {track.get('title')}")
+            recorded.append(out_path)
+            continue
+        print(f"\n[{i+1}/{total}] Запись: {track.get('title')} — {', '.join(track.get('artists', []))}")
+        result = run_record_track(
+            track_dict=track,
+            output_path=out_path,
+            manual_play=manual_play,
+        )
+        if result:
+            recorded.append(result)
+    return recorded

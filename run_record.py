@@ -14,7 +14,7 @@ if sys.stdout.encoding and "utf" not in sys.stdout.encoding.lower():
 from dotenv import load_dotenv
 load_dotenv()
 
-from recorder.record import run_record_track
+from recorder.record import run_record_track, run_record_playlist
 from recorder.config import load_parse_json, PROJECT_ROOT
 
 
@@ -55,6 +55,17 @@ def main():
         action="store_true",
         help="Авторизация Spotipy (OAuth). Выполни на хосте — откроется браузер.",
     )
+    parser.add_argument(
+        "--playlist",
+        type=str,
+        metavar="URL",
+        help="Ссылка на плейлист Spotify — записать все треки в папку с именем плейлиста",
+    )
+    parser.add_argument(
+        "--no-skip",
+        action="store_true",
+        help="С --playlist: не пропускать уже записанные треки",
+    )
     args = parser.parse_args()
 
     if args.auth:
@@ -74,6 +85,15 @@ def main():
             uri = t.get("spotify_uri", "")
             print(f"  [{i}] {artists} — {title}")
             print(f"      {uri}")
+        return
+
+    if args.playlist:
+        recorded = run_record_playlist(
+            playlist_url=args.playlist,
+            manual_play=args.manual,
+            skip_existing=not args.no_skip,
+        )
+        print(f"\nЗаписано {len(recorded)} треков.")
         return
 
     result = run_record_track(
