@@ -1,0 +1,21 @@
+
+services:
+  record:
+    build:
+      context: .
+      dockerfile: recorder/Dockerfile
+    image: music-recorder:latest
+    container_name: spotify-record
+
+    network_mode: host
+
+    env_file: .env
+    environment:
+      - PYTHONIOENCODING=utf-8
+
+    volumes:
+      - ./parse.json:/app/parse.json:ro
+      - ./.recorder_cache:/app/.recorder_cache
+      - ./recordings:/app/recordings
+
+    command: ["--index", "0"]
