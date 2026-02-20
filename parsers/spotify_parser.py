@@ -35,6 +35,23 @@ def fetch_all_spotify_tracks(sp, playlist_id):
 
     return tracks
 
+def parse_spotify_track(sp, url_or_id):
+    """Получить данные одного трека по URL или ID."""
+    if "spotify" in str(url_or_id):
+        track_id = url_or_id.rstrip("/").split("/")[-1].split("?")[0]
+    else:
+        track_id = url_or_id
+    t = sp.track(track_id)
+    return {
+        "title": t.get("name"),
+        "artists": [a.get("name") for a in t.get("artists", [])],
+        "album": t.get("album", {}).get("name"),
+        "duration_ms": t.get("duration_ms"),
+        "spotify_uri": t.get("uri"),
+        "spotify_id": t.get("id"),
+    }
+
+
 def parse_spotify_playlist(sp, url_or_id):
     if "spotify" in url_or_id:
         playlist_id = url_or_id.rstrip('/').split("/")[-1].split("?")[0]

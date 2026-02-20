@@ -56,10 +56,22 @@ def main():
         help="Авторизация Spotipy (OAuth). Выполни на хосте — откроется браузер.",
     )
     parser.add_argument(
-        "--playlist",
+        "-t", "--track",
         type=str,
         metavar="URL",
-        help="Ссылка на плейлист Spotify — записать все треки в папку с именем плейлиста",
+        help="Записать один трек по ссылке (https://open.spotify.com/track/...)",
+    )
+    parser.add_argument(
+        "--playlist",
+        type=str,
+        metavar="URL или путь к .json",
+        help="URL плейлиста или путь к playlist.json (см. --fetch-playlist)",
+    )
+    parser.add_argument(
+        "--fetch-playlist",
+        type=str,
+        metavar="URL",
+        help="Скачать плейлист с API (на хосте!) и сохранить в recordings/.../playlist.json",
     )
     parser.add_argument(
         "--no-skip",
@@ -87,13 +99,40 @@ def main():
             print(f"      {uri}")
         return
 
+    if args.fetch_playlist:
+        from recorder.record import fetch_and_save_playlist
+        path = fetch_and_save_playlist(args.fetch_playlist)
+        container_path = f"/app/recordings/{path.parent.name}/playlist.json"
+        print(f"Плейлист сохранён: {path}")
+        print("В контейнере: python run_record.py --playlist", container_path)
+        return
+
+    if args.track:
+        from recorder.spotify_controller import get_spotify_user_client
+        from parsers.spotify_parser import parse_spotify_track
+        sp = get_spotify_user_client()
+        try:
+            track_dict = parse_spotify_track(sp, args.track)
+        except Exception as e:
+            if "403" in str(e) or "unavailable" in str(e).lower():
+                print("Ошибка: API Spotify недоступен (403 по гео). Выполни --track на хосте.")
+            raise
+        result = run_record_track(
+            track_dict=track_dict,
+            output_path=args.output,
+            manual_play=args.manual,
+        )
+        if result is None:
+            exit(1)
+        return
+
     if args.playlist:
         recorded = run_record_playlist(
-            playlist_url=args.playlist,
+            playlist_url_or_path=args.playlist,
             manual_play=args.manual,
             skip_existing=not args.no_skip,
         )
-        print(f"\nЗаписано {len(recorded)} треков.")
+        print(f"\nГотово: {len(recorded)} треков.")
         return
 
     result = run_record_track(

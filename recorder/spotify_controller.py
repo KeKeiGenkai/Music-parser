@@ -39,34 +39,28 @@ def get_spotify_user_client() -> Spotify:
         open_browser=open_browser,
     )
     cache_file = Path(cache_path)
-    print(f"[LOG] Spotipy OAuth cache: {cache_path}", flush=True)
     if in_docker and not cache_file.exists():
         raise RuntimeError(
             "Кэш OAuth не найден! На хосте (PowerShell) выполни: python run_record.py --auth\n"
             "Откроется браузер, войди в Spotify. Потом перезапусти запись в контейнере."
         )
-    print("[LOG] Получение токена...", flush=True)
     token = auth.get_access_token(as_dict=False)
     if not token:
         raise RuntimeError(
             "Не удалось получить токен. На хосте выполни: python run_record.py --auth"
         )
-    print("[LOG] Spotipy токен получен", flush=True)
     return Spotify(auth_manager=auth)
 
 
 def get_record_device_id(sp: Spotify) -> str | None:
     try:
         resp = sp.devices()
-        devices = resp.get("devices") or []
-        print(f"[LOG] Устройств в Spotify: {len(devices)}", flush=True)
-        for d in devices:
-            name, did = d.get("name"), d.get("id")
-            print(f"[LOG]   - {name!r} (id={did})", flush=True)
+        for d in resp.get("devices") or []:
+            name = d.get("name")
             if name == DEVICE_NAME or (name and DEVICE_NAME.lower() in name.lower()):
-                return did
-    except Exception as e:
-        print(f"[LOG] Ошибка sp.devices(): {e}", flush=True)
+                return d.get("id")
+    except Exception:
+        pass
     return None
 
 
@@ -74,16 +68,11 @@ def play_track_on_device(sp: Spotify, track_uri: str, device_id: str | None = No
     if not device_id:
         device_id = get_record_device_id(sp)
     if not device_id:
-        print(f"[LOG] Устройство '{DEVICE_NAME}' не найдено.", flush=True)
         return False
-
     try:
-        print(f"[LOG] sp.start_playback(device_id={device_id!r}, uris=[{track_uri!r}])", flush=True)
         sp.start_playback(device_id=device_id, uris=[track_uri])
-        print("[LOG] start_playback выполнен успешно", flush=True)
         return True
-    except Exception as e:
-        print(f"[LOG] Ошибка start_playback: {e}", flush=True)
+    except Exception:
         return False
 
 

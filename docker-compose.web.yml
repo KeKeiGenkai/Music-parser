@@ -1,0 +1,23 @@
+# Веб-интерфейс для записи. Открой http://localhost:8080
+services:
+  record:
+    build:
+      context: .
+      dockerfile: recorder/Dockerfile
+    image: music-recorder:latest
+    container_name: spotify-record
+
+    env_file: .env
+    environment:
+      - PYTHONIOENCODING=utf-8
+      - LIBRESPOT_USE_OAUTH=1
+
+    volumes:
+      - ./parse.json:/app/parse.json:ro
+      - ./.recorder_cache:/app/.recorder_cache
+      - ./recordings:/app/recordings
+
+    ports:
+      - "8080:8080"
+
+    command: ["python", "-m", "uvicorn", "web:app", "--host", "0.0.0.0", "--port", "8080"]
