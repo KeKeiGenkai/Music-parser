@@ -1,0 +1,43 @@
+# Исключаем из Docker build context — иначе отправляется 15+ GB
+# (Сборке нужны только: requirements.txt, parsers/, recorder/, run_record.py, web.py)
+
+# Git — может занимать сотни MB
+.git
+.gitignore
+.github
+
+# Записи — гигабайты музыки (монтируются volume, не нужны при сборке)
+recordings
+
+# Кэш librespot/записи (монтируется volume)
+.recorder_cache
+
+# Виртуальные окружения
+.venv
+venv
+env
+
+# Python кэш
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Конфиг и секреты (монтируются/передаются отдельно)
+.env
+.env.*
+parse.json
+
+# Документация и прочее
+*.md
+LICENSE
+
+# IDE, ОС
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
