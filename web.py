@@ -403,12 +403,12 @@ _HTML_PAGE = """
     <details class="logs">
         <summary>Логи записи</summary>
         <pre id="logsContent" style="margin-top:0.5rem;">Нажми «Обновить» для загрузки</pre>
-        <button type="button" id="btnLogs" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
+        <button type="button" style="margin-top:0.5rem;font-size:0.85rem;" onclick="var e=document.getElementById('logsContent');e.textContent='Загрузка...';fetch('/api/logs').then(function(r){return r.json()}).then(function(d){e.textContent=d.lines&&d.lines.length?d.lines.join('\n'):(d.message||'Пусто')}).catch(function(err){e.textContent='Ошибка: '+err})">Обновить</button>
     </details>
     <details class="logs" style="margin-top:0.5rem;">
         <summary>Диагностика (пути, volume)</summary>
         <pre id="debugContent" style="margin-top:0.5rem;font-size:0.8rem;">Нажми «Обновить»</pre>
-        <button type="button" id="btnDebug" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
+        <button type="button" style="margin-top:0.5rem;font-size:0.85rem;" onclick="var e=document.getElementById('debugContent');e.textContent='Загрузка...';fetch('/api/debug').then(function(r){return r.json()}).then(function(d){e.textContent='recordings_dir: '+d.recordings_dir+'\nexists: '+d.recordings_exists+'\nitems: '+(d.recordings_items||[]).join(', ')+'\ncwd: '+d.cwd}).catch(function(err){e.textContent='Ошибка: '+err})">Обновить</button>
     </details>
 
     <div class="recordings">
@@ -566,8 +566,6 @@ _HTML_PAGE = """
 
         btn.addEventListener('click', startRecord);
         document.getElementById('btnJson').addEventListener('click', startRecordJson);
-        document.getElementById('btnLogs').addEventListener('click', loadLogs);
-        document.getElementById('btnDebug').addEventListener('click', loadDebug);
 
         pollStatus().then(function() { if (!document.hidden) { loadRecordings(); loadPlaylists(); } }).catch(function() {});
         loadRecordings();
