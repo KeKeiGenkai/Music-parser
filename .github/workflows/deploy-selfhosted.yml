@@ -1,0 +1,22 @@
+
+
+name: Deploy (self-hosted)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          cd "$DEPLOY_PATH"
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
+          docker-compose -f docker-compose.web.yml build
+          docker-compose -f docker-compose.web.yml up -d

@@ -28,8 +28,10 @@ if [ -d .git ]; then
     fi
 fi
 
+NO_CACHE=""
+[[ "${1:-}" == "--force" || "${1:-}" == "-f" ]] && NO_CACHE="--no-cache"
 echo "[deploy] docker-compose build..."
-docker-compose -f docker-compose.web.yml build --no-cache
+docker-compose -f docker-compose.web.yml build $NO_CACHE
 
 echo "[deploy] docker-compose up -d..."
 docker-compose -f docker-compose.web.yml up -d
