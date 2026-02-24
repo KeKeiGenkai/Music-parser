@@ -1,8 +1,7 @@
-name: Deploy to Arch laptop
+name: Deploy via SSH
 
+# Только ручной запуск. Для автодеплоя при push используй deploy-selfhosted.yml
 on:
-  push:
-    branches: [main, master]
   workflow_dispatch:
 
 jobs:
