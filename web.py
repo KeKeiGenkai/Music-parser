@@ -360,7 +360,7 @@ _HTML_PAGE = """
 <body>
     <h1>Spotify Recorder</h1>
     <p style="color: #8b949e; margin-bottom: 1.5rem;">Вставь ссылку на трек или плейлист — файлы сохранятся и будут доступны для скачивания.</p>
-    <p style="color: white; font-size: 0.85rem; margin-bottom: 1rem;">✓ CI/CD автодеплой: push → GitHub Actions → ноут → контейнер4444444</p>
+    <p style="color: white; font-size: 0.85rem; margin-bottom: 1rem;">✓ CI/CD автодеплой: push → GitHub Actions → ноут → контейнер</p>
 
     <div class="input-row">
         <input type="text" id="url" placeholder="https://open.spotify.com/track/... или /playlist/..." autocomplete="off">
@@ -489,7 +489,9 @@ _HTML_PAGE = """
             const r = await fetch('/api/recordings');
             const d = await r.json();
             let html = '';
-            for (const f of d.folders) {
+            const folders = d.folders || [];
+            const rootFiles = d.root_files || [];
+            for (const f of folders) {
                 html += '<div class="folder"><div class="folder-name">' + escapeHtml(f.name);
                 if (f.tracks.length > 0) {
                     html += '<a href="/api/download-folder/' + encodeURIComponent(f.name) + '" class="dl-all" download>Скачать всё ZIP</a>';
@@ -501,7 +503,7 @@ _HTML_PAGE = """
                 }
                 html += '</div>';
             }
-            for (const t of d.root_files) {
+            for (const t of rootFiles) {
                 html += '<div class="track"><span>' + escapeHtml(t) + '</span>';
                 html += '<a href="/api/download/' + encodeURIComponent(t) + '" download>Скачать</a></div>';
             }
@@ -515,12 +517,16 @@ _HTML_PAGE = """
                 const r = await fetch('/api/logs');
                 const d = await r.json();
                 const el = document.getElementById('logsContent');
-                if (d.message && !d.lines?.length) el.textContent = d.message;
+                if (d.message && !(d.lines && d.lines.length)) el.textContent = d.message;
                 else el.textContent = (d.lines || []).join('\n') || 'Лог пуст';
             } catch (e) { document.getElementById('logsContent').textContent = 'Ошибка: ' + e.message; }
         }
 
-        pollStatus().then(() => { if (!document.hidden) { loadRecordings(); loadPlaylists(); } });
+        window.startRecord = startRecord;
+        window.startRecordJson = startRecordJson;
+        window.loadLogs = loadLogs;
+
+        pollStatus().then(function() { if (!document.hidden) { loadRecordings(); loadPlaylists(); } }).catch(function() {});
         loadRecordings();
         loadPlaylists();
     </script>
