@@ -341,7 +341,7 @@ _HTML_PAGE = """
 <body>
     <h1>Spotify Recorder</h1>
     <p style="color: #8b949e; margin-bottom: 1.5rem;">Вставь ссылку на трек или плейлист — файлы сохранятся и будут доступны для скачивания.</p>
-    <p style="color: white; font-size: 0.85rem; margin-bottom: 1rem;">✓ CI/CD автодеплой: push → GitHub Actions → ноут → контейнер</p>
+    <p style="color: white; font-size: 0.85rem; margin-bottom: 1rem;">✓ CI/CD автодеплой: push → GitHub Actions → ноут → контейнер22222222222222</p>
 
     <div class="input-row">
         <input type="text" id="url" placeholder="https://open.spotify.com/track/... или /playlist/..." autocomplete="off">
