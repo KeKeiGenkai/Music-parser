@@ -1,4 +1,4 @@
-# Веб-интерфейс для записи. Открой http://localhost:8080
+# Веб-интерфейс для записи http://localhost:8080
 services:
   record:
     build:
@@ -17,7 +17,6 @@ services:
       - ./.recorder_cache:/app/.recorder_cache
       - ./recordings:/app/recordings
 
-    ports:
-      - "8080:8080"
+    network_mode: host
 
     command: ["python", "-m", "uvicorn", "web:app", "--host", "0.0.0.0", "--port", "8080"]
