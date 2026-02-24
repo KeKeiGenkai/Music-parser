@@ -243,7 +243,7 @@ async def api_logs(lines: int = Query(100, ge=1, le=500)):
 async def api_recordings():
     """Список папок и файлов в recordings."""
     if not RECORDINGS_DIR.exists():
-        return {"folders": [], "files": []}
+        return {"folders": [], "root_files": []}
     folders = []
     root_files = []
     for p in sorted(RECORDINGS_DIR.iterdir()):
@@ -364,13 +364,13 @@ _HTML_PAGE = """
 
     <div class="input-row">
         <input type="text" id="url" placeholder="https://open.spotify.com/track/... или /playlist/..." autocomplete="off">
-        <button id="btn" onclick="startRecord()">Записать</button>
+        <button id="btn">Записать</button>
     </div>
     <details class="details-403" style="margin-top:1rem;">
         <summary style="cursor:pointer;color:#8b949e;font-size:0.9rem;">При 403: записать сохранённый плейлист</summary>
         <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
             <select id="playlistSelect" style="padding:0.4rem;background:#161b22;border:1px solid #30363d;border-radius:6px;color:#e6edf3;min-width:200px;"></select>
-            <button id="btnJson" onclick="startRecordJson()">Записать</button>
+            <button id="btnJson">Записать</button>
         </div>
         <p style="color:#8b949e;font-size:0.85rem;margin-top:0.5rem;">Сначала на хосте: <code>python run_record.py --fetch-playlist "URL"</code></p>
     </details>
@@ -384,7 +384,7 @@ _HTML_PAGE = """
     <details class="logs">
         <summary>Логи записи</summary>
         <pre id="logsContent" style="margin-top:0.5rem;">Нажми «Обновить» для загрузки</pre>
-        <button type="button" onclick="loadLogs()" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
+        <button type="button" id="btnLogs" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
     </details>
 
     <div class="recordings">
@@ -486,8 +486,9 @@ _HTML_PAGE = """
         }
 
         async function loadRecordings() {
-            const r = await fetch('/api/recordings');
-            const d = await r.json();
+            try {
+                const r = await fetch('/api/recordings');
+                const d = await r.json();
             let html = '';
             const folders = d.folders || [];
             const rootFiles = d.root_files || [];
@@ -508,6 +509,9 @@ _HTML_PAGE = """
                 html += '<a href="/api/download/' + encodeURIComponent(t) + '" download>Скачать</a></div>';
             }
             document.getElementById('recordingsList').innerHTML = html || '<p style="color:#8b949e">Нет записей</p>';
+            } catch (e) {
+                document.getElementById('recordingsList').innerHTML = '<p style="color:#f85149">Ошибка загрузки: ' + String(e.message).replace(/</g,'&lt;') + '</p>';
+            }
         }
 
         function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -522,9 +526,9 @@ _HTML_PAGE = """
             } catch (e) { document.getElementById('logsContent').textContent = 'Ошибка: ' + e.message; }
         }
 
-        window.startRecord = startRecord;
-        window.startRecordJson = startRecordJson;
-        window.loadLogs = loadLogs;
+        btn.addEventListener('click', startRecord);
+        document.getElementById('btnJson').addEventListener('click', startRecordJson);
+        document.getElementById('btnLogs').addEventListener('click', loadLogs);
 
         pollStatus().then(function() { if (!document.hidden) { loadRecordings(); loadPlaylists(); } }).catch(function() {});
         loadRecordings();
