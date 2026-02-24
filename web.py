@@ -224,6 +224,21 @@ async def api_playlists():
     return {"playlists": playlists}
 
 
+@app.get("/api/logs")
+async def api_logs(lines: int = Query(100, ge=1, le=500)):
+    """Последние строки лога записи (record.log)."""
+    log_path = RECORDINGS_DIR / "record.log"
+    if not log_path.exists():
+        return {"lines": [], "message": "Лог пуст"}
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        last = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        return {"lines": [line.rstrip("\n") for line in last]}
+    except Exception as e:
+        return {"lines": [], "message": str(e)}
+
+
 @app.get("/api/recordings")
 async def api_recordings():
     """Список папок и файлов в recordings."""
@@ -325,7 +340,11 @@ _HTML_PAGE = """
         .progress-bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #238636, #2ea043); transition: width 0.3s; }
         .track-info { font-size: 1rem; margin-top: 0.5rem; }
-        .error { color: #f85149; margin-top: 0.5rem; }
+        .error { color: #f85149; margin-top: 0.5rem; padding: 0.75rem; background: rgba(248,81,73,0.1); border-radius: 6px; border: 1px solid #f85149; display: none; }
+        .error:not(:empty) { display: block; }
+        .logs { margin-top: 1rem; }
+        .logs summary { cursor: pointer; color: #8b949e; font-size: 0.9rem; }
+        .logs pre { background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
         .recordings { margin-top: 2rem; }
         .recordings h2 { font-size: 1.1rem; margin-bottom: 1rem; }
         .folder { margin-bottom: 1.5rem; }
@@ -360,8 +379,13 @@ _HTML_PAGE = """
         <div class="progress-label">Запись...</div>
         <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width: 0%"></div></div>
         <div id="trackInfo" class="track-info"></div>
-        <div id="error" class="error"></div>
     </div>
+    <div id="error" class="error"></div>
+    <details class="logs">
+        <summary>Логи записи</summary>
+        <pre id="logsContent" style="margin-top:0.5rem;">Нажми «Обновить» для загрузки</pre>
+        <button type="button" onclick="loadLogs()" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
+    </details>
 
     <div class="recordings">
         <h2>Записи</h2>
@@ -390,6 +414,7 @@ _HTML_PAGE = """
             } else {
                 progress.classList.add('hidden');
                 errorEl.textContent = err || '';
+                if (err) loadLogs();
             }
         }
 
@@ -484,6 +509,16 @@ _HTML_PAGE = """
         }
 
         function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        async function loadLogs() {
+            try {
+                const r = await fetch('/api/logs');
+                const d = await r.json();
+                const el = document.getElementById('logsContent');
+                if (d.message && !d.lines?.length) el.textContent = d.message;
+                else el.textContent = (d.lines || []).join('\n') || 'Лог пуст';
+            } catch (e) { document.getElementById('logsContent').textContent = 'Ошибка: ' + e.message; }
+        }
 
         pollStatus().then(() => { if (!document.hidden) { loadRecordings(); loadPlaylists(); } });
         loadRecordings();

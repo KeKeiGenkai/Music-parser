@@ -14,7 +14,8 @@ def fetch_all_spotify_tracks(sp, playlist_id):
         response = sp.playlist_items(
             playlist_id,
             limit=limit,
-            offset=offset
+            offset=offset,
+            market="from_token",
         )
 
         for item in response.get("items", []):
@@ -41,7 +42,7 @@ def parse_spotify_track(sp, url_or_id):
         track_id = url_or_id.rstrip("/").split("/")[-1].split("?")[0]
     else:
         track_id = url_or_id
-    t = sp.track(track_id)
+    t = sp.track(track_id, market="from_token")
     return {
         "title": t.get("name"),
         "artists": [a.get("name") for a in t.get("artists", [])],
@@ -58,7 +59,7 @@ def parse_spotify_playlist(sp, url_or_id):
     else:
         playlist_id = url_or_id
 
-    playlist = sp.playlist(playlist_id)
+    playlist = sp.playlist(playlist_id, market="from_token")
 
     title = playlist.get("name")
     owner = playlist.get("owner", {}).get("display_name")
