@@ -14,7 +14,18 @@ echo "[deploy] Директория: $PROJECT_DIR"
 
 if [ -d .git ]; then
     echo "[deploy] git pull..."
+    NEED_STASH=0
+    git diff --quiet 2>/dev/null || NEED_STASH=1
+    git diff --cached --quiet 2>/dev/null || NEED_STASH=1
+    if [ "$NEED_STASH" = "1" ]; then
+        echo "[deploy] Локальные изменения — прячу (stash)..."
+        git stash push -m "deploy $(date +%Y%m%d_%H%M%S)"
+    fi
     git pull --rebase
+    if [ "$NEED_STASH" = "1" ]; then
+        echo "[deploy] Восстанавливаю изменения..."
+        git stash pop
+    fi
 fi
 
 echo "[deploy] docker-compose build..."
