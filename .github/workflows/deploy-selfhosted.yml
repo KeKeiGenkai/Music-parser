@@ -15,7 +15,10 @@ jobs:
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
+          echo "DEPLOY_PATH=$DEPLOY_PATH"
           cd "$DEPLOY_PATH"
+          echo "pwd=$(pwd)"
+          echo "recordings: $([ -d recordings ] && ls recordings | head -3 || echo 'NOT FOUND')"
           git fetch origin
           git reset --hard origin/${{ github.ref_name }}
           bash scripts/deploy.sh

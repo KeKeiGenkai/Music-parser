@@ -11,6 +11,9 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
 echo "[deploy] Директория: $PROJECT_DIR"
+echo "[deploy] pwd: $(pwd)"
+echo "[deploy] recordings exists: $([ -d recordings ] && echo yes || echo no)"
+echo "[deploy] .env exists: $([ -f .env ] && echo yes || echo no)"
 
 if [ -d .git ]; then
     echo "[deploy] git pull..."

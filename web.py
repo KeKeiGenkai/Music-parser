@@ -224,6 +224,25 @@ async def api_playlists():
     return {"playlists": playlists}
 
 
+@app.get("/api/debug")
+async def api_debug():
+    """Диагностика: пути, наличие файлов (для отладки CI/CD)."""
+    r = RECORDINGS_DIR
+    exists = r.exists()
+    items = []
+    if exists:
+        try:
+            items = [p.name for p in sorted(r.iterdir())[:20]]
+        except Exception as e:
+            items = [f"err: {e}"]
+    return {
+        "recordings_dir": str(r),
+        "recordings_exists": exists,
+        "recordings_items": items,
+        "cwd": str(Path.cwd()),
+    }
+
+
 @app.get("/api/logs")
 async def api_logs(lines: int = Query(100, ge=1, le=500)):
     """Последние строки лога записи (record.log)."""
@@ -386,6 +405,11 @@ _HTML_PAGE = """
         <pre id="logsContent" style="margin-top:0.5rem;">Нажми «Обновить» для загрузки</pre>
         <button type="button" id="btnLogs" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
     </details>
+    <details class="logs" style="margin-top:0.5rem;">
+        <summary>Диагностика (пути, volume)</summary>
+        <pre id="debugContent" style="margin-top:0.5rem;font-size:0.8rem;">Нажми «Обновить»</pre>
+        <button type="button" id="btnDebug" style="margin-top:0.5rem;font-size:0.85rem;">Обновить</button>
+    </details>
 
     <div class="recordings">
         <h2>Записи</h2>
@@ -526,9 +550,24 @@ _HTML_PAGE = """
             } catch (e) { document.getElementById('logsContent').textContent = 'Ошибка: ' + e.message; }
         }
 
+        async function loadDebug() {
+            try {
+                const [r1, r2] = await Promise.all([fetch('/api/debug'), fetch('/api/recordings')]);
+                const d = await r1.json();
+                const rec = await r2.json();
+                const el = document.getElementById('debugContent');
+                el.textContent = 'recordings_dir: ' + d.recordings_dir + '\n'
+                    + 'exists: ' + d.recordings_exists + '\n'
+                    + 'items: ' + (d.recordings_items || []).join(', ') + '\n'
+                    + 'cwd: ' + d.cwd + '\n'
+                    + 'folders: ' + (rec.folders || []).length + ', root_files: ' + (rec.root_files || []).length;
+            } catch (e) { document.getElementById('debugContent').textContent = 'Ошибка: ' + e.message; }
+        }
+
         btn.addEventListener('click', startRecord);
         document.getElementById('btnJson').addEventListener('click', startRecordJson);
         document.getElementById('btnLogs').addEventListener('click', loadLogs);
+        document.getElementById('btnDebug').addEventListener('click', loadDebug);
 
         pollStatus().then(function() { if (!document.hidden) { loadRecordings(); loadPlaylists(); } }).catch(function() {});
         loadRecordings();
