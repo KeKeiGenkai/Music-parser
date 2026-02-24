@@ -11,12 +11,11 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
-      - name: Deploy
+      - name: Deploy (git pull + build + start container)
         env:
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
           cd "$DEPLOY_PATH"
           git fetch origin
           git reset --hard origin/${{ github.ref_name }}
-          docker-compose -f docker-compose.web.yml build
-          docker-compose -f docker-compose.web.yml up -d
+          bash scripts/deploy.sh
