@@ -1,7 +1,25 @@
+# Секреты и ключи (никогда не коммитить!)
 .env
+.env.*
+!.env.example
+
+# Кэш OAuth Spotify и librespot
 .recorder_cache/
+
+# Записи и данные
 recordings/
+parse.json
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 .venv/
 venv/
+env/
+
+# IDE и ОС
+.idea/
+.vscode/
+*.swp
+.DS_Store
