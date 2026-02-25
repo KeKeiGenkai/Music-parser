@@ -5,7 +5,8 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PARSE_JSON_PATH = PROJECT_ROOT / "parse.json"
-RECORDINGS_DIR = PROJECT_ROOT / "recordings"
+_raw = os.getenv("RECORDINGS_DIR")
+RECORDINGS_DIR = Path(_raw) if _raw else PROJECT_ROOT / "recordings"
 CACHE_DIR = PROJECT_ROOT / ".recorder_cache"
 
 LIBRESPOT_CMD = os.getenv("LIBRESPOT_CMD", "librespot")
@@ -46,3 +47,5 @@ def get_track_by_uri(data: dict, uri: str) -> dict | None:
         if t.get("spotify_uri") == uri:
             return t
     return None
+
+

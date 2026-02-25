@@ -1,0 +1,24 @@
+
+
+name: Deploy (self-hosted)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Deploy (git pull + build + start container)
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          echo "DEPLOY_PATH=$DEPLOY_PATH"
+          cd "$DEPLOY_PATH"
+          echo "pwd=$(pwd)"
+          echo "recordings: $([ -d recordings ] && ls recordings | head -3 || echo 'NOT FOUND')"
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
+          bash scripts/deploy.sh

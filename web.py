@@ -224,11 +224,45 @@ async def api_playlists():
     return {"playlists": playlists}
 
 
+@app.get("/api/debug")
+async def api_debug():
+    """Диагностика: пути, наличие файлов (для отладки CI/CD)."""
+    r = RECORDINGS_DIR
+    exists = r.exists()
+    items = []
+    if exists:
+        try:
+            items = [p.name for p in sorted(r.iterdir())[:20]]
+        except Exception as e:
+            items = [f"err: {e}"]
+    return {
+        "recordings_dir": str(r),
+        "recordings_exists": exists,
+        "recordings_items": items,
+        "cwd": str(Path.cwd()),
+    }
+
+
+@app.get("/api/logs")
+async def api_logs(lines: int = Query(100, ge=1, le=500)):
+    """Последние строки лога записи (record.log)."""
+    log_path = RECORDINGS_DIR / "record.log"
+    if not log_path.exists():
+        return {"lines": [], "message": "Лог пуст"}
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        last = all_lines[-lines:] if len(all_lines) > lines else all_lines
+        return {"lines": [line.rstrip("\n") for line in last]}
+    except Exception as e:
+        return {"lines": [], "message": str(e)}
+
+
 @app.get("/api/recordings")
 async def api_recordings():
     """Список папок и файлов в recordings."""
     if not RECORDINGS_DIR.exists():
-        return {"folders": [], "files": []}
+        return {"folders": [], "root_files": []}
     folders = []
     root_files = []
     for p in sorted(RECORDINGS_DIR.iterdir()):
@@ -325,7 +359,11 @@ _HTML_PAGE = """
         .progress-bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin: 0.5rem 0; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, #238636, #2ea043); transition: width 0.3s; }
         .track-info { font-size: 1rem; margin-top: 0.5rem; }
-        .error { color: #f85149; margin-top: 0.5rem; }
+        .error { color: #f85149; margin-top: 0.5rem; padding: 0.75rem; background: rgba(248,81,73,0.1); border-radius: 6px; border: 1px solid #f85149; display: none; }
+        .error:not(:empty) { display: block; }
+        .logs { margin-top: 1rem; }
+        .logs summary { cursor: pointer; color: #8b949e; font-size: 0.9rem; }
+        .logs pre { background: #161b22; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
         .recordings { margin-top: 2rem; }
         .recordings h2 { font-size: 1.1rem; margin-bottom: 1rem; }
         .folder { margin-bottom: 1.5rem; }
@@ -341,16 +379,17 @@ _HTML_PAGE = """
 <body>
     <h1>Spotify Recorder</h1>
     <p style="color: #8b949e; margin-bottom: 1.5rem;">Вставь ссылку на трек или плейлист — файлы сохранятся и будут доступны для скачивания.</p>
+    <p style="color: white; font-size: 0.85rem; margin-bottom: 1rem;">✓ CI/CD автодеплой: push → GitHub Actions → ноут → контейнер</p>
 
     <div class="input-row">
         <input type="text" id="url" placeholder="https://open.spotify.com/track/... или /playlist/..." autocomplete="off">
-        <button id="btn" onclick="startRecord()">Записать</button>
+        <button id="btn">Записать</button>
     </div>
     <details class="details-403" style="margin-top:1rem;">
         <summary style="cursor:pointer;color:#8b949e;font-size:0.9rem;">При 403: записать сохранённый плейлист</summary>
         <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
             <select id="playlistSelect" style="padding:0.4rem;background:#161b22;border:1px solid #30363d;border-radius:6px;color:#e6edf3;min-width:200px;"></select>
-            <button id="btnJson" onclick="startRecordJson()">Записать</button>
+            <button id="btnJson">Записать</button>
         </div>
         <p style="color:#8b949e;font-size:0.85rem;margin-top:0.5rem;">Сначала на хосте: <code>python run_record.py --fetch-playlist "URL"</code></p>
     </details>
@@ -359,8 +398,18 @@ _HTML_PAGE = """
         <div class="progress-label">Запись...</div>
         <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width: 0%"></div></div>
         <div id="trackInfo" class="track-info"></div>
-        <div id="error" class="error"></div>
     </div>
+    <div id="error" class="error"></div>
+    <details class="logs">
+        <summary>Логи записи</summary>
+        <pre id="logsContent" style="margin-top:0.5rem;">Нажми «Обновить» для загрузки</pre>
+        <button type="button" style="margin-top:0.5rem;font-size:0.85rem;" onclick="var e=document.getElementById('logsContent');e.textContent='Загрузка...';fetch('/api/logs').then(function(r){return r.json()}).then(function(d){e.textContent=d.lines&&d.lines.length?d.lines.join('\n'):(d.message||'Пусто')}).catch(function(err){e.textContent='Ошибка: '+err})">Обновить</button>
+    </details>
+    <details class="logs" style="margin-top:0.5rem;">
+        <summary>Диагностика (пути, volume)</summary>
+        <pre id="debugContent" style="margin-top:0.5rem;font-size:0.8rem;">Нажми «Обновить»</pre>
+        <button type="button" style="margin-top:0.5rem;font-size:0.85rem;" onclick="var e=document.getElementById('debugContent');e.textContent='Загрузка...';fetch('/api/debug').then(function(r){return r.json()}).then(function(d){e.textContent='recordings_dir: '+d.recordings_dir+'\nexists: '+d.recordings_exists+'\nitems: '+(d.recordings_items||[]).join(', ')+'\ncwd: '+d.cwd}).catch(function(err){e.textContent='Ошибка: '+err})">Обновить</button>
+    </details>
 
     <div class="recordings">
         <h2>Записи</h2>
@@ -389,6 +438,7 @@ _HTML_PAGE = """
             } else {
                 progress.classList.add('hidden');
                 errorEl.textContent = err || '';
+                if (err) loadLogs();
             }
         }
 
@@ -460,10 +510,13 @@ _HTML_PAGE = """
         }
 
         async function loadRecordings() {
-            const r = await fetch('/api/recordings');
-            const d = await r.json();
+            try {
+                const r = await fetch('/api/recordings');
+                const d = await r.json();
             let html = '';
-            for (const f of d.folders) {
+            const folders = d.folders || [];
+            const rootFiles = d.root_files || [];
+            for (const f of folders) {
                 html += '<div class="folder"><div class="folder-name">' + escapeHtml(f.name);
                 if (f.tracks.length > 0) {
                     html += '<a href="/api/download-folder/' + encodeURIComponent(f.name) + '" class="dl-all" download>Скачать всё ZIP</a>';
@@ -475,16 +528,46 @@ _HTML_PAGE = """
                 }
                 html += '</div>';
             }
-            for (const t of d.root_files) {
+            for (const t of rootFiles) {
                 html += '<div class="track"><span>' + escapeHtml(t) + '</span>';
                 html += '<a href="/api/download/' + encodeURIComponent(t) + '" download>Скачать</a></div>';
             }
             document.getElementById('recordingsList').innerHTML = html || '<p style="color:#8b949e">Нет записей</p>';
+            } catch (e) {
+                document.getElementById('recordingsList').innerHTML = '<p style="color:#f85149">Ошибка загрузки: ' + String(e.message).replace(/</g,'&lt;') + '</p>';
+            }
         }
 
         function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-        pollStatus().then(() => { if (!document.hidden) { loadRecordings(); loadPlaylists(); } });
+        async function loadLogs() {
+            try {
+                const r = await fetch('/api/logs');
+                const d = await r.json();
+                const el = document.getElementById('logsContent');
+                if (d.message && !(d.lines && d.lines.length)) el.textContent = d.message;
+                else el.textContent = (d.lines || []).join('\n') || 'Лог пуст';
+            } catch (e) { document.getElementById('logsContent').textContent = 'Ошибка: ' + e.message; }
+        }
+
+        async function loadDebug() {
+            try {
+                const [r1, r2] = await Promise.all([fetch('/api/debug'), fetch('/api/recordings')]);
+                const d = await r1.json();
+                const rec = await r2.json();
+                const el = document.getElementById('debugContent');
+                el.textContent = 'recordings_dir: ' + d.recordings_dir + '\n'
+                    + 'exists: ' + d.recordings_exists + '\n'
+                    + 'items: ' + (d.recordings_items || []).join(', ') + '\n'
+                    + 'cwd: ' + d.cwd + '\n'
+                    + 'folders: ' + (rec.folders || []).length + ', root_files: ' + (rec.root_files || []).length;
+            } catch (e) { document.getElementById('debugContent').textContent = 'Ошибка: ' + e.message; }
+        }
+
+        btn.addEventListener('click', startRecord);
+        document.getElementById('btnJson').addEventListener('click', startRecordJson);
+
+        pollStatus().then(function() { if (!document.hidden) { loadRecordings(); loadPlaylists(); } }).catch(function() {});
         loadRecordings();
         loadPlaylists();
     </script>
